@@ -55,6 +55,7 @@ const STATE = {
 // Request throttling system
 const requestQueue = [];
 let isProcessingQueue = false;
+let isConsideredTV = isLikelyTvEnvironment();
 
 /**
  * Process the next request in the queue with throttling
@@ -205,7 +206,7 @@ const initLoadingScreen = () => {
     const loginFormLoaded = document.querySelector(".manualLoginForm");
     const homePageLoaded =
       document.querySelector(".homeSectionsContainer") &&
-      document.querySelector("#slides-container");
+      (document.querySelector("#slides-container") || isConsideredTV);
 
     if (loginFormLoaded || homePageLoaded) {
       clearInterval(progressInterval);
@@ -214,6 +215,11 @@ const initLoadingScreen = () => {
       progressBar.style.transition = "width 300ms ease-in-out";
       progressBar.style.width = "100%";
       unfilledBar.style.width = "0%";
+
+      if ( isConsideredTV && homePageLoaded ) {
+	    let homeSectionsContainer = document.querySelector(".homeSectionsContainer");
+	    homeSectionsContainer.style.position = 'static';
+      }
 
       progressBar.addEventListener('transitionend', () => {
         requestAnimationFrame(() => {
@@ -273,7 +279,7 @@ const startLoginStatusWatcher = () => {
       if (isLoggedIn) {
         console.log("👤 User logged in. Initializing slideshow...");
         if (!STATE.slideshow.hasInitialized) {
-          waitForApiClientAndInitialize();
+           waitForApiClientAndInitialize();
         } else {
           console.log("🔄 Slideshow already initialized, skipping");
         }
@@ -285,6 +291,69 @@ const startLoginStatusWatcher = () => {
     }
   }, 2000);
 };
+
+function isLikelyTvEnvironment() {
+    const ua = navigator.userAgent.toLowerCase();
+
+    console.log("----- Checking if " + ua + " is a TV Envrionment");
+
+    // 1. Check for specific TV Platform APIs (most reliable if present)
+    if (typeof window.tizen !== 'undefined' || typeof window.webOS !== 'undefined') {
+        console.log("TV detected via specific platform API (Tizen/webOS)");
+        return true;
+    }
+
+    // 2. Check User Agent for common TV keywords
+    const tvKeywords = [
+        'tv',            // General keyword
+        'smart-tv',      // Older smart TVs
+        'googletv',      // Older Google TV
+        'crkey',         // Chromecast
+        'appletv',       // Apple TV
+        'tizen',         // Samsung Tizen (might be missed by API check if UA only)
+        'webos',         // LG WebOS (might be missed by API check if UA only)
+        'viera',         // Panasonic Viera
+        'sonydtv',       // Sony Bravia
+        'bravia',        // Sony Bravia
+        'netcast',       // Older LG TVs
+        'dtv',           // Digital TV
+        'hbbtv',         // Hybrid Broadcast Broadband TV
+        'aft',           // Amazon Fire TV prefix (e.g., 'aftb', 'aftt', 'aftm') - Be careful, could be sticks/cubes too
+        'roku',          // Roku devices
+        'xbox',          // Xbox consoles often used on TVs
+        'playstation',   // Playstation consoles often used on TVs
+        'nintendo',      // Nintendo consoles often used on TVs
+        'philips',       // Philips TVs often include this
+        // Add more keywords if you identify specific Jellyfin client UAs on TVs
+    ];
+
+    // Check if the UA string contains any of the keywords
+    const foundKeyword = tvKeywords.some(keyword => ua.includes(keyword));
+
+    if (foundKeyword) {
+        // Additional check: Ensure it's not obviously a mobile Android/iOS device
+        // that happens to have 'tv' in its model name or description.
+        // This is imperfect but reduces false positives.
+        if (!ua.includes('mobile') && !ua.includes('tablet')) {
+             console.log(`TV likely detected via User Agent keyword: ${tvKeywords.find(keyword => ua.includes(keyword))}`);
+             return true;
+        } else {
+             console.log(`UA contains TV keyword but also 'mobile'/'tablet', likely not a TV.`);
+        }
+    }
+
+    // 3. Optional: Check for Android TV specifically (often lacks 'mobile')
+    // Android TV UA examples:
+    // - Mozilla/5.0 (Linux; Android 11; Build/RTT1.210311.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 CrKey/1.56.500000
+    // - Mozilla/5.0 (Linux; Android 7.0; Nexus Player Build/NRD90R) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.98 Safari/537.36
+    // Key indicators: 'linux; android', lack of 'mobile'. This overlaps with tablets, so use cautiously.
+    if (ua.includes('linux; android') && !ua.includes('mobile')) {
+        console.log("Potentially Android TV detected (UA: 'linux; android' without 'mobile') - Less reliable check.");
+    }
+
+    console.log("Device not detected as TV environment.");
+    return false;
+}
 
 /**
  * Wait for ApiClient to initialize before starting the slideshow
@@ -314,7 +383,9 @@ const waitForApiClientAndInitialize = () => {
       if (!STATE.slideshow.hasInitialized) {
         initJellyfinData(() => {
           console.log("✅ Jellyfin API client initialized successfully");
-          slidesInit();
+	  if ( !isConsideredTV ) {
+	          slidesInit();
+	  }
         });
       } else {
         console.log("🔄 Slideshow already initialized, skipping");
@@ -1695,5 +1766,4 @@ window.slideshowPure = {
 };
 
 initLoadingScreen();
-
 startLoginStatusWatcher();
