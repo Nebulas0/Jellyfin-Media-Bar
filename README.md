@@ -37,8 +37,8 @@ Here I present my version with some code improvements, loading optimizations, an
   2. Search for `</head>`
   3. Just before the `</head>`, plug the below code
 ```
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/MakD/Jellyfin-Media-Bar@latest/slideshowpure.css" />
-    <script async src="https://cdn.jsdelivr.net/gh/MakD/Jellyfin-Media-Bar@latest/slideshowpure.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Nebulas0/Jellyfin-Media-Bar@latest/slideshowpure.css" />
+    <script async src="https://cdn.jsdelivr.net/gh/Nebulas0/Jellyfin-Media-Bar@latest/slideshowpure.js"></script>
 ```
 </details>
 
